@@ -1,0 +1,166 @@
+package org.sadrobot
+
+import scala.collection.mutable.{Map, SynchronizedMap, HashMap}
+
+import org.apache.mina.core.session.IoSession
+
+/**
+  * Class Command
+  * 
+  * All Command subclasses implement exec.  Each User has a list
+  * of commands that are available to them.
+  * 
+  */
+abstract class Command {
+   def exec(issuingUserSession : UserSessionActor, req : Request)
+   def missingDataMsg = { "...mysterious silence" }
+}
+
+/**
+  * Class User
+  * 
+  * Not much here yet.  Right now, it just consists of a username and a list of 
+  * commands that have been assigned to the user.  I'm setting this up
+  * so that different users can have different commands assigned to them, and 
+  * that they can be added / removed dynamically
+  *
+  * Each UserSessionActor has it's own user instance, so this doesn't require
+  * a synchronized Map at the moment.  However, if privileged users (i.e. admin users)
+  * were to be given the ability to add / remove commands from normal users
+  * then that decision might need to be reconsidered.  
+  */
+class User(val username : String) {
+  private var cmdMap : Map[String,Command] = Map.empty;
+  
+  def addCommand   (cmdVerb : String, cmdFunc : Command) = {cmdMap += ((cmdVerb,cmdFunc))}
+  def removeCommand(cmd : String) = {cmdMap -= cmd}
+  def getCommand   (cmd : String) : Option[Command] = {cmdMap get cmd}
+}
+
+/**
+  * object whoCommand
+  * 
+  * this command returns a list of users currently logged into the system
+  * 
+  */
+object whoCommand extends Command with LogHelper {
+
+  override def exec(issuingUserSession : UserSessionActor, 
+                    req                : Request) = { this.who(issuingUserSession) }
+  
+  def who(issuingUserSession : UserSessionActor) = {
+    issuingUserSession.sreplyln("--- Users currently logged in ---")
+    ActiveUserSessions.userSessionSet foreach { us => issuingUserSession.sreplyln(us.user.username) }
+  }
+}
+
+/**
+  * object quitCommand
+  * 
+  * this command terminates the users session
+  * 
+  */
+object quitCommand extends Command with LogHelper {
+  private def discoMsg = { 
+    "Feel the city breakin'\nAnd ev'rybody shakin'\nAnd we're stayin' alive, stayin' alive." 
+  }
+  override def exec(issuingUserSession : UserSessionActor, 
+                    req                : Request) = { this.quit(issuingUserSession) }
+  
+  def quit(issuingUserSession : UserSessionActor) = {
+    issuingUserSession.sreplyln(discoMsg)
+    issuingUserSession.disconnectSession
+  }
+}
+
+/**
+  * object broadcastCommand
+  * 
+  * this command broadcasts the provided message
+  * to EVERY user currently logged into the system
+  * 
+  */
+object broadcastCommand extends Command with LogHelper {
+  
+  override def exec(issuingUserSession : UserSessionActor, 
+                    req                : Request) = {
+    if (req.command == "say") {
+      req.data match {
+        case Some(s) => {
+          broadcast(issuingUserSession,Some(issuingUserSession.user.username + " says: " + s))
+        }
+        case None => {
+          issuingUserSession.sreplyln(missingDataMsg)
+        }
+      }
+    }
+    else {
+      broadcast(issuingUserSession,req.data)
+    }
+  }
+  
+  def broadcast(fromUserSession : UserSessionActor, 
+                msg             : Option[String]) =  {
+    msg match {
+      case Some(s : String) => {
+        ActiveUserSessions.userSessionSet filter( us => 
+          { us.user.username != null && 
+            us.user.username != fromUserSession.user.username}) foreach { _.sreplyln(s) }
+
+      }
+      case None => {
+        fromUserSession.sreplyln(missingDataMsg); 
+      }
+    }
+  }
+  
+}
+
+/**
+  * object tellCommand
+  * 
+  * this command passes the included message
+  * to the specified user
+  * 
+  */
+object tellCommand extends Command with LogHelper {
+  override def exec(issuingUserSession : UserSessionActor, req : Request) = {
+    req.modifiers match {
+      case Some(modlist : List[String]) => {
+        val toUname = modlist(0)
+        tell(issuingUserSession,toUname,req.data)
+      }
+      case None => { 
+        issuingUserSession.sreplyln("Er, tell who, exactly?"); false 
+      }
+    }
+  }
+  
+  def tell(fromUserSession : UserSessionActor, 
+           toUser          : String, 
+           msg             : Option[String]) {
+    
+     ActiveUserSessions.getUserSession(toUser) match {
+        case Some(toUserSession) => {
+          tell(fromUserSession,toUserSession,msg)
+        }
+        case None => {
+          fromUserSession.sreplyln(toUser + " is not available.")
+        }
+     }
+  }
+  
+  def tell(fromUserSession : UserSessionActor, 
+           toUserSession   : UserSessionActor, 
+           msg             : Option[String]) {
+	  msg match {
+	    case Some(s) => {
+		  toUserSession.sreplyln(fromUserSession.user.username + " tells you: " + s)
+		  fromUserSession.sreplyln("You tell " + toUserSession.user.username + ": " + s)
+	    }
+	    case None => { 
+		  fromUserSession.sreplyln(missingDataMsg) 
+	    }
+	  }
+  }
+}

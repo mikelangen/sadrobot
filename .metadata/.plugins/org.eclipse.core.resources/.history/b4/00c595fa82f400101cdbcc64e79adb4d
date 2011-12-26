@@ -1,0 +1,7 @@
+-- TELL --
+
+tell <username> <message>
+
+This command sends <message> to <username>.  Trying to think of 
+what else I can tell you about the "tell" command.  That's 
+really about it.  

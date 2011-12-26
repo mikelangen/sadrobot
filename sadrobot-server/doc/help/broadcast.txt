@@ -1,0 +1,7 @@
+-- BROADCAST --
+
+broadcast <message>
+
+This command sends your message to _everyone_ that's logged in.  
+Everyone.  This includes that person that you're not thinking
+about.  Don't say you weren't warned.

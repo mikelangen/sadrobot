@@ -1,0 +1,50 @@
+package org.sadrobot.common
+
+/****************************************************************************** 
+  * class Request
+  *****************************************************************************
+  * Modification history:
+  * 
+  * Reverted to regular class from case class.  Had to explicitly add "val"
+  * before attributes in order to keep the eclipse scala parser from complaining.
+  * 
+  * 11/04/2011 -- Mike Langen
+  * 
+  * Spent today trying to figure out how to incorporate the Validation trait.  
+  * 
+  * Should Command extend it, or Request?  It seems like a Request ought to 
+  * do validation, but a shouldn't a Command do it too?  Since a Command "isA"
+  * Request, shouldn't Command inherit Request, then Request would inherit 
+  * Validator?
+  * 
+  * So I spent a while making a Command a subclass of Request, and having
+  * the codec instantiate the correct Command subclass (WhoCommand, TellCommand, etc)
+  * instead of a generic "Request" object.
+  * 
+  * Ultimately, I want have one obvious way to map command "verbs"
+  * to command objects.  Right now, I envision a Map that has the verb as 
+  * the key and the command object as the value.  (i.e. "tell" => TellCommand)
+  * 
+  * For now, I'm keeping Request simple and leaving commands subclasses as
+  * Singletons that take Requests as parameters.  It ultimately
+  * just boils down to the fact that that implementation feels easier to 
+  * understand and it more inherently obvious when doing maintenance.  One of 
+  * the kinda sucky things about inheritance is the fact that when you're working
+  * on a subclass, (which is where you'll be spending all your time), it isn't
+  * necessarily obviously what parent attributes you need to use in order to 
+  * implement your class without stopping to go do research.  In this case,
+  * having the object right there on the command line (Request), makes it obvious.
+  * 
+  * 11/04/2011 -- Mike Langen
+  * 
+  */
+  * 11/04/2011 -- Mike Langen
+  * 
+  * Extracted interface and moved to common
+  * 
+  * 11/08/2011 -- Mike Langen
+  * 
+  */
+class Request (val command   : String, 
+               val modifiers : Option[List[String]], 
+               val data      : Option[String])

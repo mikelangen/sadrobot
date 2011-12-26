@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<section name="Workbench">
+	<section name="org.eclipse.ui.texteditor.FindReplaceDialog_dialogBounds">
+		<item value="310" key="DIALOG_WIDTH"/>
+		<item value="294" key="DIALOG_Y_ORIGIN"/>
+		<item value="430" key="DIALOG_HEIGHT"/>
+		<item value="714" key="DIALOG_X_ORIGIN"/>
+		<item value="1|Sans|10.0|0|GTK|1|" key="DIALOG_FONT_NAME"/>
+	</section>
+	<section name="org.eclipse.ui.texteditor.FindReplaceDialog">
+		<item value="true" key="wrap"/>
+		<item value="false" key="isRegEx"/>
+		<item value="false" key="casesensitive"/>
+		<item value="false" key="incremental"/>
+		<item value="false" key="wholeword"/>
+		<item value="def sreply" key="selection"/>
+		<list key="findhistory">
+			<item value="def sreply"/>
+			<item value="sreply"/>
+			<item value="execCommand"/>
+			<item value="\n  "/>
+			<item value="sending"/>
+			<item value="reply"/>
+			<item value="loop"/>
+		</list>
+		<list key="replacehistory">
+			<item value=" "/>
+		</list>
+	</section>
+</section>

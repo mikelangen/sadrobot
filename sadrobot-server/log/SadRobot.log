@@ -1,0 +1,15 @@
+16:51:37  INFO [main          ] Listening on 0.0.0.0:9999
+16:51:50  INFO [main          ] Listening on 0.0.0.0:9999
+16:53:10 DEBUG [<init>        ] Instantiating UserSessionActor for session: (0x00000001: nio socket, server, /10.29.120.63:45107 => /172.23.32.241:9999)
+16:53:10  INFO [apply         ] opening session (0x00000001: nio socket, server, /10.29.120.63:45107 => /172.23.32.241:9999)
+16:53:10 DEBUG [sreply        ] [reply to sess] (0x00000001: nio socket, server, /10.29.120.63:45107 => /172.23.32.241:9999) SadRobot test server 0.9
+16:53:10 DEBUG [sreply        ] [reply to sess] (0x00000001: nio socket, server, /10.29.120.63:45107 => /172.23.32.241:9999) Username: 
+16:53:13 DEBUG [requestAllData] parsing data: ÿôÿý
+16:53:13  INFO [userLogin     ] User: ÿôÿý logged in.
+16:53:13 DEBUG [sreply        ] [reply to user] ÿôÿý| Welcome, ÿôÿý
+16:53:15 DEBUG [requestAllData] parsing data: ÿûquit
+16:53:15 DEBUG [sreply        ] [reply to user] ÿôÿý| hrm?
+16:53:20 DEBUG [requestAllData] parsing data: hi
+16:53:20 DEBUG [sreply        ] [reply to user] ÿôÿý| hrm?
+16:53:25 DEBUG [requestAllData] parsing data: ÿôÿý
+16:53:25 DEBUG [sreply        ] [reply to user] ÿôÿý| hrm?

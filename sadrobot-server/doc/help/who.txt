@@ -1,0 +1,6 @@
+-- WHO --
+
+who
+
+This command generates a list of all the users currently logged
+into the system.

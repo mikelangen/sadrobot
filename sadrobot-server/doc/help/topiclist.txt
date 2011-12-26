@@ -1,0 +1,7 @@
+-- TOPICLIST --
+
+topiclist
+
+This command will list all the the active
+topics on the system, as well as the number
+of users participating in each topic.

@@ -1,0 +1,84 @@
+
+<project name="sadrobot-core-commands" default="create-jar" basedir=".">
+	
+	<!-- setup any global properties here -->
+	<property name="bin" value="./bin" />
+	<property name="src" value="./src" />
+	<property name="dist" value="./dist" />
+	<property name="build" value="./build" />
+	<property name="lib" value="./lib" />
+	<property name="config" value="./config" />
+	<property name="jarfile.name" value="SadRobotServer.jar" />
+	<property name="main" value="org.sadrobot.SadRobotServer" />
+	<property name="mina" value="apache-mina-2.0.4" />
+	<property name="scala.lib" value="C:\eclipse_scala\configuration\org.eclipse.osgi\bundles\361\1\.cp\lib" />
+	
+	<property file="build.properties" />	
+
+	<!-- clean out the dist directory -->
+	<target name="clean-pre-jar" description="Deletes and recreates dist and build dir.">
+		<echo message="Cleaning up the dist and build directory. "/>
+		<delete dir="${dist}"/>
+		<mkdir dir="${dist}"/>
+		<delete dir="${build}/org/sadrobot"/>
+		<delete dir="${build}/test/sadrobot"/>
+		<mkdir dir="${build}"/>
+	</target>
+
+	<!-- create the jar file -->
+	<target name="create-jar" depends="clean-pre-jar" description="creates a an executable jar">
+		<echo message="Creating JAR file"/>
+		
+		<copy todir="${build}">
+			<fileset dir="${bin}"/>
+			<zipfileset src="${scala.lib}/scala-library.jar" />
+			<!--
+			<zipfileset dir="${scala.lib}/scala-dbc.jar" />
+		    <zipfileset dir="${scala.lib}scala-swing.jar" />
+		    -->
+			<zipfileset src="${mina}/dist/mina-core-2.0.4.jar" />
+			<!--
+			<zipfileset src="${mina}/dist/mina-example-2.0.4.jar" />
+			<zipfileset src="${mina}/dist/mina-filter-compression-2.0.4.jar" />
+			<zipfileset src="${mina}/dist/mina-integration-beans-2.0.4.jar" />
+			<zipfileset src="${mina}/dist/mina-integration-jmx-2.0.4.jar" />
+			<zipfileset src="${mina}/dist/mina-integration-ognl-2.0.4.jar" />
+			<zipfileset src="${mina}/dist/mina-integration-xbean-2.0.4.jar" />
+			<zipfileset src="${mina}/dist/mina-statemachine-2.0.4.jar" />     
+			<zipfileset src="${mina}/dist/mina-transport-apr-2.0.4.jar" />
+			<zipfileset src="${mina}/lib/commons-lang-2.6.jar" />
+			<zipfileset src="${mina}/lib/commons-logging-1.0.3.jar" />
+			<zipfileset src="${mina}/lib/javassist-3.11.0.GA.jar" />
+			<zipfileset src="${mina}/lib/javassist-3.7.ga.jar" />
+			<zipfileset src="${mina}/lib/jcl-over-slf4j-1.6.1.jar" />
+			<zipfileset src="${mina}/lib/jzlib-1.0.7.jar" />
+			<zipfileset src="${mina}/lib/ognl-3.0.1.jar" />
+			-->
+			<zipfileset src="${mina}/lib/slf4j-api-1.6.1.jar" />
+			<!--
+			<zipfileset src="${mina}/lib/spring-2.5.6.jar" />
+			<zipfileset src="${mina}/lib/tomcat-apr-5.5.23.jar" />
+			<zipfileset src="${mina}/lib/xbean-spring-3.7.jar" />
+			<zipfileset src="${lib}/log4j-1.2.16.jar" />
+			-->
+		</copy>
+		<copy todir="${dist}">
+			<fileset file="log4j.properties" />
+		</copy>
+		<!--  Doesn't work.  I've got to expand all this shit.  
+		<copy todir="${build}/lib">
+		  <fileset dir="${lib}/${mina}/lib" />
+		  <fileset dir="${lib}/${mina}/dist" />
+		  <fileset file="${lib}/log4j-1.2.16.jar"/>
+		</copy>
+		-->
+		
+		<jar basedir="${build}" destfile="${dist}/${jarfile.name}">
+			<manifest>
+			    <attribute name="Main-Class" value="${main}"/>
+			</manifest>
+		</jar>
+	</target>
+
+</project>
+

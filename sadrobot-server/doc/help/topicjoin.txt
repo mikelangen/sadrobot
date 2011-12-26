@@ -1,0 +1,6 @@
+-- TOPICJOIN --
+
+topicjoin <topic>
+
+This command lets you read the messages being published
+to the given topic, and respond to those messages.

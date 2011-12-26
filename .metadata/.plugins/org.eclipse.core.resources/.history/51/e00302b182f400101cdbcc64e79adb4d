@@ -1,0 +1,5 @@
+-- TELL --
+
+tell <username> <message>
+
+This command sends <message> to <username>.  That's it.  Was that really that hard?

@@ -1,0 +1,14 @@
+-- HELP --
+
+Try: help <topic>
+
+Help topics
+-----------
+broadcast
+tell
+quit
+who
+topicjoin
+topiccreate
+topiclist
+topicusers

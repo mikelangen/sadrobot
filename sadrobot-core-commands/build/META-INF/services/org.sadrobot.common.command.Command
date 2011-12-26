@@ -1,0 +1,9 @@
+org.sadrobot.core.command.BroadcastCommand
+org.sadrobot.core.command.TellCommand
+org.sadrobot.core.command.WhoCommand
+org.sadrobot.core.command.QuitCommand
+org.sadrobot.core.command.HelpCommand
+org.sadrobot.core.command.JoinTopicCommand
+org.sadrobot.core.command.ListAllTopicsCommand
+org.sadrobot.core.command.CreateTopicCommand
+org.sadrobot.core.command.ListTopicUsersCommand

@@ -1,0 +1,123 @@
+package org.sadrobot
+
+import net.lag.naggati.{IoHandlerActorAdapter, MinaMessage, ProtocolError}
+
+import org.apache.mina.core.buffer.IoBuffer
+import org.apache.mina.core.session.{IdleStatus, IoSession}
+import java.io.IOException
+import scala.actors.Actor
+import scala.collection.mutable.{Set, SynchronizedSet, HashSet}
+
+class UserSessionSet extends HashSet[UserSessionActor] with SynchronizedSet[UserSessionActor] {
+    def getUserSession(username : String)= find {_.user.username == username}
+}
+
+//class UserSessionSet {
+//  var sessions = new HashSet[UserSessionActor] with SynchronizedSet[UserSessionActor]
+//  def getUserSession(username : String)= sessions find {_.user.username == username}
+//}
+
+//
+// Set of all active User Sessions -- shared / synchronized
+// for all actors
+//
+object AllUserSessions extends UserSessionSet
+
+//
+// One of these is instantiated for each session / connection
+//
+class UserSessionActor(val session: IoSession) extends Actor with LogHelper {
+  
+  var user : User = _
+  
+  debug("Instantiating UserSessionActor for session: " + session)
+  
+  start
+
+  def act = {
+    loop {
+      react {
+        case MinaMessage.MessageReceived(msg) => {
+          if (user == null) 
+            { userLogin(msg.asInstanceOf[Request]) }
+          else 
+            { handleRequest(msg.asInstanceOf[Request]) }
+        }
+        case MinaMessage.SessionClosed => { 
+          info("session closed: " + session)
+          exit() 
+        }
+        case MinaMessage.SessionIdle(status) => { 
+          info("closing idle session: " + session + " status: " + status)
+          disconnectSession
+          exit()
+        }
+        case MinaMessage.SessionOpened => { 
+          info("opening session " + session)
+          sreplyln("SadRobot test server "+SadRobotServer.VERSION) 
+          sreply  ("Username: ")
+        }
+
+        case MinaMessage.ExceptionCaught(cause) => {
+          cause.getCause match {
+            case e: ProtocolError => {sreplyln("Error: " + e.getMessage); error("Error: " + e.getMessage) }
+            case i: IOException   => {sreplyln("Error: " + i.getMessage); error("Error: " + i.getMessage) }
+            case _                => {sreplyln("Exception: " + cause);    error("Exception: " + cause) }
+          }
+        }
+      }
+    }
+  }
+  
+  def disconnectSession() = {
+    if (!session.isClosing) {
+      info("disconnecting session for user: " + user.username)
+      broadcastCommand.broadcast(this,Some(user.username + " has disconnected."))
+      AllUserSessions -= this
+      session.close 
+    }
+  }
+  
+  private def handleRequest(req: Request) = {
+    user.getCommand(req.command) match {
+      case Some(c : Command) => { c.exec(this,req) }
+      case None => {sreplyln("hrm?")}
+    }
+  }
+  
+  def sreplyln(str: String) = sreply(str + "\n")
+  
+  def sreply(str: String) = {
+    debug((if (user != null) 
+             {"[reply to user] " + user.username + "| "}
+           else
+             {"[reply to sess] "} + session + " ")
+          + str ) 
+    session.write(new Response(IoBuffer.wrap(str.getBytes)))  
+  }
+  
+  //
+  // trivial placeholder for initializing a user
+  // until I tackle authentication.
+  //
+  private def userLogin(req: Request): Unit = {
+	req.data match {
+	  case Some(uname : String) => {
+	      this.user = new User(uname)
+	      this.user.addCommand("tell",tellCommand);
+	      this.user.addCommand("say", broadcastCommand)
+	      this.user.addCommand("who", whoCommand)
+	      this.user.addCommand("quit",quitCommand)
+	      AllUserSessions += this
+		  info("User: " + uname + " logged in.")
+		  sreplyln("Welcome, " + uname)
+	      broadcastCommand.broadcast(this,Some(uname + " has just logged in."))
+	  }
+	  case None => {
+		  sreplyln("hrm?")
+		  sreply  ("Username: ")
+	  }
+	}
+  }
+
+}

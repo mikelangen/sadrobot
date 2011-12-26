@@ -1,0 +1,45 @@
+
+<project name="sadrobot-core-commands" default="create-jar" basedir=".">
+	
+	<!-- setup any global properties here -->
+	<property name="bin"   value="./bin" />
+	<property name="src"   value="./src" />
+	<property name="dist"  value="./dist" />
+	<property name="build" value="./build" />
+	<property name="lib"   value="./lib" />
+	<property name="jarfile.name" value="sadrobot-core-commands.jar" />
+
+	<!--
+	<property file="build.properties" />	
+	-->
+
+	<!-- clean out the dist directory -->
+	<target name="clean-pre-jar" description="Deletes and recreates build and dist dir.">
+		<echo message="Cleaning up the build and dist directory. "/>
+		<delete dir="${dist}"/>
+		<mkdir  dir="${dist}"/>
+		<delete dir="${build}"/>
+		<mkdir  dir="${build}"/>
+	</target>
+
+	<!-- create the jar file -->
+	<target name="create-jar" depends="clean-pre-jar" description="creates a an executable jar">
+		<echo message="Creating JAR file"/>
+		
+		<copy todir="${build}">
+			<fileset dir="${bin}"/>
+		</copy>
+		<copy todir="${build}/META-INF">
+		    <!-- Manually copy in the META-INF directory instead of using the manifest attrib
+		      == on the jar tag, because we have to make sure that META-INF/services is copied in
+		      == as well.
+		      -->
+		   <fileset dir="META-INF"/>
+		</copy>
+		
+		<jar basedir="${build}" destfile="${dist}/${jarfile.name}"/>
+
+	</target>
+
+</project>
+

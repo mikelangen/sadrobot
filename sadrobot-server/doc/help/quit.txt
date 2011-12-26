@@ -1,0 +1,7 @@
+-- QUIT --
+
+quit
+
+Nope, there's nothing fancy or special about this
+command.  It just does exactly what you would 
+expect it to do.  It disconnects you from the server.

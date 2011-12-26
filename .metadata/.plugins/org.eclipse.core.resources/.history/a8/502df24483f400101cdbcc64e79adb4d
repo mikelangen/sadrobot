@@ -1,0 +1,10 @@
+-- TELL --
+
+tell <username> <message>
+
+This command sends <message> to <username>.  Trying to think of 
+what else I can tell you about the "tell" command.  There's not 
+too much too it.  That's really about it.  Let's not make things
+more complicated than they need to be, okay?   Maybe I'll get 
+all fancy and let you tell a group of people something one day, but
+for now, it's just "tell <user> <message>"

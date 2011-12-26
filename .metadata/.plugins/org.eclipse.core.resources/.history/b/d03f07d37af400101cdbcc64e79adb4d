@@ -1,0 +1,116 @@
+package org.sadrobot
+
+import org.apache.mina.core.buffer.IoBuffer
+import org.apache.mina.core.session.{IdleStatus, IoSession}
+import org.apache.mina.filter.codec._
+import net.lag.naggati._
+import net.lag.naggati.Steps._
+
+case class Request (command: String, modifiers : Option[List[String]], data: Option[String])
+case class Response(data: IoBuffer)
+
+object Codec extends LogHelper {
+  
+  val encoder = new ProtocolEncoder {
+    def encode(session: IoSession, message: AnyRef, out: ProtocolEncoderOutput) = {
+      val buffer = message.asInstanceOf[Response].data
+      out.write(buffer)
+    }
+
+    // no-op, required by ProtocolEncoder trait
+    def dispose(session: IoSession): Unit = {} 
+  }
+  
+  //
+  // Default message decoding.  take the first
+  // token and stash it in Request.command.  Take the whole
+  // line (including the command) and stash it in Request.data
+  //
+  //
+  def requestAllData(tokens : List[String]) : Request = {
+    debug("parsing data: " + tokens.mkString(" "))
+    
+    if (tokens.isEmpty)  
+      {Request("",None,None);}
+    else 
+      {Request(tokens.head,None, Some(tokens.mkString(" ")))}
+  }
+  
+  //
+  // Take the first token on the line and stash it in Request.command
+  // take numMods tokens after that and stash them the Request.modifiers
+  // take everything else and stash it in Request.data
+  //
+  // Ex.  Given the incoming line:  
+  //
+  // tell foo don't be a jerkwad 
+  //
+  // called with numMods set to: 1
+  //
+  // Request.command is  : tell
+  // Request.modifiers is: foo
+  // Request.data is     : don't be a jerkwad
+  //
+  // This is very simple at the moment, and will probably become a key
+  // place where incoming data would need to be validated / sanitized.
+  //
+  def requestCommand(tokens : List[String], numMods : Integer) : Request = {
+    if (!tokens.isEmpty)
+    {
+    	debug("cmd is: " + tokens.head)
+
+    	Request(tokens.head,
+
+    	        // Building a request obj.  Use the return val of this if
+    	        // as the first parameter (modifiers)
+    	    
+    			if (tokens.length > numMods+1) {
+    				debug("modifier(s) are: " 
+    				        + tokens.slice(1,numMods+1).mkString(" ") 
+    				        + " mod count is: " + numMods)
+    				Some(tokens.slice(1,numMods+1))
+    			}
+    			else if (tokens.length > 1) {
+    				debug("modifier(s) are: " 
+    				        + tokens.tail.mkString(" ") 
+    				        + " mod count is: " + numMods)
+    				Some(tokens.tail)
+    			}
+    			else {
+    				debug("No command modifiers provided.")
+    				None
+    			},
+    			
+    			// Use return val of this if as second request parameter (data)
+
+    			if (tokens.length > numMods+1) {
+    				debug("requestCommand: returning data following modifier(s).  remaining data is: "
+    						+ tokens.slice(numMods+1,tokens.length).mkString(" "))
+    				Some(tokens.slice(numMods+1,tokens.length).mkString(" "))
+    			}
+    			else {
+    				debug("requestCommand: no data found after modifers(s).")
+    				None
+    			})
+    }
+    else
+    {
+      Request("",None,None)
+    }
+  }
+  
+  val decoder = new Decoder(readLine(true, "ISO-8859-1") { line => 
+    {
+      val tokens : Array[String] = line.split(' ');
+      
+      tokens.head.toLowerCase() match {
+        case "tell" =>  { state.out.write(requestCommand(List.fromArray(tokens),1)); End }
+        case "say"  =>  { state.out.write(requestCommand(List.fromArray(tokens),0)); End }
+        case "quit" =>  { state.out.write(requestCommand(List.fromArray(tokens),0)); End }
+        case "who"  =>  { state.out.write(requestCommand(List.fromArray(tokens),0)); End }
+        case "help" =>  { state.out.write(requestCommand(List.fromArray(tokens),0)); End }
+        case _      =>  { state.out.write(requestAllData(List.fromArray(tokens)));   End }
+      }
+    }
+  })
+}

@@ -1,0 +1,63 @@
+
+<project name="hello" default="create-jar" basedir=".">
+
+	<!-- setup any global properties here -->
+	<property name="bin" value="./bin" />
+	<property name="src" value="./src" />
+	<property name="dist" value="./dist" />
+	<property name="build" value="./build" />
+	<property name="lib" value="./lib" />
+	<property name="config" value="./config" />
+	<property name="jarfile.name" value="hello.jar" />
+	<property name="main" value="foo.HelloWorld" />
+	<property name="scala.lib" value="/home/admingeek/eclipse/configuration/org.eclipse.osgi/bundles/208/1/.cp/lib" />
+	<!--
+	<property name="scala.lib" value="C:\eclipse_scala\configuration\org.eclipse.osgi\bundles\361\1\.cp\lib" />
+	-->
+	<property name="mina" value="apache-mina-2.0.4" />
+	<!--
+	<property name="jar.bin" value="./bin" />
+	<property name="jar.lib" value="./lib" />
+	-->
+	<property file="build.properties" />	
+
+    <!--
+	<property name="java.lib" value="C:\Program Files\Java\jre6\lib" />
+	-->
+
+	<!-- clean out the dist directory -->
+	<target name="clean-pre-jar" description="Deletes and recreates dist and build dir.">
+		<echo message="Cleaning up the dist and build directory. "/>
+		<delete dir="${dist}"/>
+		<mkdir dir="${dist}"/>
+		<delete dir="${build}"/>
+		<mkdir dir="${build}"/>
+	</target>
+
+	<!-- create the jar file -->
+	<target name="create-jar" depends="clean-pre-jar" description="creates a an executable jar">
+		<echo message="Creating JAR file"/>
+		
+		<copy todir="${build}">
+			<fileset dir="${bin}"/>
+		</copy>
+		<copy todir="${build}">
+		  <fileset dir="${lib}"/>
+		  <fileset dir="${scala.lib}" />
+		  <fileset dir="${lib}/${mina}/lib" />
+		  <fileset dir="${lib}/${mina}/dist" />
+		</copy>
+
+		<!--
+		<jar basedir="${build}" manifest="./META-INF/MANIFEST.MF" destfile="${dist}/${jarfile.name}">
+		-->
+		<jar basedir="${bin}" destfile="${dist}/${jarfile.name}">
+			<manifest>
+				<attribute name="Class-Path" value="scala-library.jar"/>
+			    <attribute name="Main-Class" value="${main}"/>
+			</manifest>
+		</jar>
+	</target>
+
+</project>
+

@@ -1,0 +1,6 @@
+-- TOPICUSERS --
+
+topicusers <topic>
+
+This command lists the users participating in the 
+given topic.

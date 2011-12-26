@@ -1,0 +1,556 @@
+package org.sadrobot.core.command
+
+import scala.collection.mutable.{Map, SynchronizedMap, HashMap, ListBuffer}
+import scala.io.BufferedSource
+
+import org.sadrobot.common.Request
+import org.sadrobot.common.user._
+import org.sadrobot.common.util.LogUtil
+import org.sadrobot.common.command.Command
+
+import net.liftweb.json.JsonAST
+import net.liftweb.json.JsonAST.JObject
+import net.liftweb.json.JsonDSL._
+import net.liftweb.json.Printer._
+
+object CoreCmds extends Enumeration {
+  val JoinTopic      = Value("topicjoin")
+  val CreateTopic    = Value("topiccreate")
+  val ListTopics     = Value("topiclist")
+  val ListTopicUsers = Value("topicusers")
+  val Who            = Value("who")
+  val Quit           = Value("quit")
+  val Help           = Value("help")
+  val Broadcast      = Value("broadcast")
+  val Tell           = Value("tell")
+}
+
+/******************************************************************************
+  * class JoinTopicCommand
+  *****************************************************************************
+  * 
+  * This command is used to subscribe to a topic
+  * 
+  * Modification history:
+  *
+  */
+
+class JoinTopicCommand extends Command(CoreCmds.JoinTopic.toString,0) {
+  
+  override def exec(issuingUserSession : UserSessionActor, 
+                    req                : Request) : Option[String] = { 
+    renderJson(JoinTopicCommand.joinTopic(issuingUserSession,req))
+  }
+}
+
+/******************************************************************************
+  * object JoinTopicCommand
+  *****************************************************************************
+  */
+object JoinTopicCommand extends LogUtil {
+  
+  def joinTopic(issuingUserSession : UserSessionActor, req : Request) : Option[JObject] = {
+     JoinTopicCommand.joinTopic(issuingUserSession,req.data)
+  }
+  
+  def joinTopic(issuingUserSession : UserSessionActor, topic : Option[String]) : Option[JObject]  = {
+    var retval : String = ""
+   
+    topic match {
+      case Some(topic : String) => {
+        AllUserGroups.getUserGroup(topic) match {
+          case Some(ug : UserGroup) => {
+            ug.addUserSession(issuingUserSession)
+            issuingUserSession.user.addGroupAlias(ug.groupName,ug)
+            TellCommand.tell(issuingUserSession,ug,Some(issuingUserSession.user.username + " has joined topic: " + topic))
+            retval = "Topic: |" + topic + "| joined."
+          }
+          case None => {
+            retval = "Topic: |" + topic + "| not found."
+          }
+        }
+      }
+      case None => {
+        retval = "usage: " +  CoreCmds.JoinTopic.toString + " <topicname>"
+      }
+    }
+    
+    if (retval.length > 0) {      
+      issuingUserSession.sreplyln(retval)
+      debug("creating json reply for: " + retval)
+      val reply = (CoreCmds.JoinTopic.toString -> ("reply" -> retval))
+      Some ( reply )  
+    } 
+    else {
+      None
+    }
+  }
+}
+
+/******************************************************************************
+  * class CreateTopicCommand
+  *****************************************************************************
+  * 
+  * This command creates a new topic and joins the creating user to it
+  * 
+  * Modification history:
+  *
+  */
+class CreateTopicCommand extends Command(CoreCmds.CreateTopic.toString,0) {
+  
+  override def exec(issuingUserSession : UserSessionActor, 
+                    req                : Request) : Option[String] = { 
+    renderJson(CreateTopicCommand.createTopic(issuingUserSession,req))
+  }
+}
+
+object CreateTopicCommand extends LogUtil {
+  
+  def createTopic(issuingUserSession : UserSessionActor, 
+                  req                : Request) : Option[JObject] = {
+    
+    var createTopicReply : String = ""
+    var joinTopicReply   : Option[JObject] = None
+    
+    req.data match {
+      case Some(d) => {
+        debug("creating topic: " + d)
+        AllUserGroups += new UserGroup(d);
+        createTopicReply = "Topic: |" + d + "| created."
+        joinTopicReply = JoinTopicCommand.joinTopic(issuingUserSession,Some(d)) 
+      }
+      case None => {
+        createTopicReply = "usage: " + CoreCmds.CreateTopic.toString + " <topicname>"        
+      }
+    }
+    
+    issuingUserSession.sreplyln(createTopicReply)
+    val createTopicJson = (CoreCmds.CreateTopic.toString -> ("reply" -> createTopicReply) )
+    
+    // append the json object returned by the join topic call if it's available
+    joinTopicReply match {
+      case Some(joinTopicJson : JObject) => { 
+        debug("received from joinTopic: " + compact(JsonAST.render(joinTopicReply)))
+        Some(createTopicJson ~ joinTopicJson) 
+      }
+      case None => { 
+        debug("No result from joinTopic command.")
+        Some( createTopicJson ) 
+      }
+    }
+  }
+}
+
+/******************************************************************************
+  * class ListAllTopicsCommand
+  *****************************************************************************
+  * 
+  * This command returns the list of all the topics on the system
+  * 
+  * Modification history:
+  * 
+  * Added function to create a Json object.  
+  * 
+  * 11/24/2011 Mike Langen
+  *
+  */
+class ListAllTopicsCommand extends Command(CoreCmds.ListTopics.toString,0) {
+  
+  override def exec(issuingUserSession : UserSessionActor, 
+                    req                : Request) : Option[String] = { 
+    renderJson(ListAllTopicsCommand.listAllTopics(issuingUserSession))
+  }
+}
+
+object ListAllTopicsCommand {
+  def listAllTopics(issuingUserSession : UserSessionActor) : Option[JObject] = {
+
+    issuingUserSession.sreplyln("--- Active topics ---")
+    AllUserGroups foreach { ug => 
+      issuingUserSession.sreplyln("Users: " + ug.userMap.size + "| Topic: " + ug.groupName) 
+    }
+    
+    Some(createJsonObj)
+  }
+  
+  private def createJsonObj() : JObject = {
+    ( CoreCmds.ListTopics.toString -> (AllUserGroups map { ug => 
+      ( "usergroup" -> 
+         ("name" -> ug.groupName) ~ 
+         ("usercount" -> ug.userMap.size)
+      )
+    })
+    )
+  }
+  
+}
+
+/******************************************************************************
+  * class ListTopicUsersCommand
+  *****************************************************************************
+  * 
+  * this command returns the list of users subscribed to the given topic
+  * 
+  * Modification history:
+  * 
+  *
+  */
+class ListTopicUsersCommand extends Command(CoreCmds.ListTopicUsers.toString,1) {
+  
+  override def exec(issuingUserSession : UserSessionActor, 
+                    req                : Request) : Option[String] = { 
+    req.modifiers match {
+      case Some(modlist : List[String]) => {
+        val topicName = modlist(0)
+        renderJson(ListTopicUsersCommand.listTopicUsers(issuingUserSession,topicName))
+      }
+      case None => {
+        issuingUserSession.sreplyln("usage: " + CoreCmds.ListTopicUsers.toString + " <topicname>")
+        None
+      }
+    }
+  }
+}
+
+object ListTopicUsersCommand {
+  def listTopicUsers(issuingUserSession : UserSessionActor, topicName : String) : Option[JObject] = {
+    
+    AllUserGroups.getUserGroup(topicName) match {
+      case Some(ug) => {
+        issuingUserSession.sreplyln("--- Users on (" + topicName + ") ---")
+        ug.userMap foreach { us => 
+          issuingUserSession.sreplyln(us._2.user.username)
+        }
+      }
+      case None => {
+        issuingUserSession.sreplyln("Topic not found.")
+      }
+    }
+    
+    None
+  }
+  
+  private def createJsonObj() : JObject = {
+    ( CoreCmds.ListTopics.toString -> (AllUserGroups map { ug => 
+      ( "usergroup" -> 
+         ("name" -> ug.groupName) ~ 
+         ("usercount" -> ug.userMap.size)
+      )
+    })
+    )
+  }
+  
+}
+
+
+/******************************************************************************
+  * class WhoCommand
+  *****************************************************************************
+  * 
+  * this command returns a list of users currently logged into the system
+  * 
+  * Modification history:
+  *
+  */
+class WhoCommand extends Command(CoreCmds.Who.toString,0) {
+
+  override def exec(issuingUserSession : UserSessionActor, 
+                    req                : Request) : Option[String] = { 
+    renderJson(WhoCommand.who(issuingUserSession)) 
+  }
+}
+
+object WhoCommand {
+  def who(issuingUserSession : UserSessionActor) : Option[JObject] = {
+    issuingUserSession.sreplyln("--- Users currently logged in ---")
+    AllUserSessions foreach { us => issuingUserSession.sreplyln(us.user.username) }
+    Some(createJsonObj)
+  }
+  
+  private def createJsonObj() : JObject = {
+    ( CoreCmds.Who.toString -> (AllUserSessions map { us => 
+      ("user" -> 
+         ("name" -> us.user.username) 
+      )
+    })
+    )
+  }  
+}
+
+/******************************************************************************
+  * class QuitCommand
+  *****************************************************************************
+  * 
+  * this command terminates the users session
+  * 
+  * Modification history:
+  *
+  */
+class QuitCommand extends Command(CoreCmds.Quit.toString,0) with LogUtil {
+  override def exec(issuingUserSession : UserSessionActor, 
+                    req                : Request) : Option[String] = { 
+    renderJson(QuitCommand.quit(issuingUserSession))
+  }
+}
+
+object QuitCommand {
+  private def discoMsg = { 
+    "Goodbye." 
+  }
+  
+  def quit(issuingUserSession : UserSessionActor) : Option[JObject] = {
+    issuingUserSession.sreplyln(discoMsg)
+    issuingUserSession.disconnectSession
+    val reply = (CoreCmds.Quit.toString -> ("reply" -> discoMsg))
+    Some ( reply )  
+  }
+}
+
+/******************************************************************************
+  * class HelpCommand
+  *****************************************************************************
+  * 
+  * Modification history:
+  *
+  * TO DO -- The Help files for a given command probably should be packaged 
+  * in the jar that implements them?  Or do they just need to be put in 
+  * docs/help directory on the filesystem?
+  *
+  */
+class HelpCommand extends Command(CoreCmds.Help.toString,1) {
+
+  override def exec(issuingUserSession : UserSessionActor, 
+                    req                : Request) : Option[String] = { 
+    req.modifiers match {
+      case Some(modlist : List[String]) => {
+        renderJson(HelpCommand.help(issuingUserSession,Some(modlist(0))))
+      }
+      case None => {
+        renderJson(HelpCommand.help(issuingUserSession,None))
+      }   
+    }
+  }
+}
+
+object HelpCommand extends LogUtil {
+  
+    protected def getHelpFname(helpTopic : Option[String]) : (String,Option[String]) = {
+    //val docRoot = System.getProperty("user.dir")
+    val defaultFname : String = "../doc/help/index.txt"
+    helpTopic match {
+      case Some(s) => {
+        debug("request help on topic: " + s)
+        if (HelpTopicValidator.isValid(s)) {
+          ("../doc/help/" + s + ".txt", None)
+        } else {
+          warn("Unknown help topic.")
+          (defaultFname, Some("You want help on, er, what exactly?"))
+        }
+      }
+      case None => { 
+        (defaultFname, None) 
+      }
+    }
+  }
+  
+  def help(issuingUserSession : UserSessionActor,
+           helpTopic : Option[String]) : Option[JObject]= {
+    val (fname, msg) = getHelpFname(helpTopic)
+    // 
+    // if getHelpFname returns a message, send it back to the UserSession
+    //
+    msg match { case Some(s) => {issuingUserSession.sreplyln(s)} case None => {} }
+    
+    try {
+      info("opening file: " + fname);
+      val src = scala.io.Source.fromFile(fname,"ISO-8859-1");
+      val fileContents = src.mkString
+      issuingUserSession.sreplyln(fileContents)
+      src.close
+      val reply = (CoreCmds.Help.toString -> ("reply" -> fileContents))
+      Some ( reply )  
+    }
+    catch { 
+      case e : java.io.FileNotFoundException => {
+        warn("Unable to open help file: " + fname)
+        val errMsg = "We're sorry, the help topic you've requested is not available right now.\nPlease try again later.  Beep."
+        issuingUserSession.sreplyln(errMsg)
+        val reply = (CoreCmds.Help.toString -> ("reply" -> errMsg))
+        Some ( reply )  
+      }
+    }
+  }
+}
+
+/******************************************************************************
+  * object HelpTopicValidator
+  *****************************************************************************
+  * 
+  * this command returns a list of users currently logged into the system
+  * 
+  * Modification history:
+  *
+  * Note, this should probably go away, and the Command object
+  * should add an "isValid" method, either directly or 
+  * through a "Validator" trait.
+  * 
+  */
+object HelpTopicValidator extends LogUtil {
+  def isValid(s : String) : Boolean = {
+    debug("Create a list of valid help topics somewhere, and validate against it here.")
+    debug("Generate the help index (coming from a file right now) from this list / table.")
+    debug("And put a comment above this table reminding the developer to create the matching help file in doc/help")
+    debug("when adding a new help topic")
+    true
+  }
+}
+
+/******************************************************************************
+  * class BroadcastCommand
+  *****************************************************************************
+  * 
+  * this command broadcasts the provided message to EVERY user currently 
+  * logged into the system
+  * 
+  * Modification history:
+  *
+  */
+class BroadcastCommand extends Command(CoreCmds.Broadcast.toString,0) with LogUtil {
+  
+  override def exec(issuingUserSession : UserSessionActor, 
+                    req                : Request) : Option[String] = {
+    renderJson(BroadcastCommand.broadcast(issuingUserSession,req.data))
+  }
+}
+
+object BroadcastCommand {
+    def missingDataMsg = { "...mysterious silence" }
+  
+    def broadcast(issuingUserSession : UserSessionActor, 
+                  msg                : Option[String]) : Option[JObject]=  {
+      
+    var retVal : String = "";
+    
+    msg match {
+      case Some(s : String) => {
+        retVal = s
+        AllUserSessions filter( us => 
+          { us.user.username != null && 
+            us.user.username != issuingUserSession.user.username}) foreach { _.sreplyln(issuingUserSession.user.username + " says: " + s) }
+      }
+      case None => {
+        retVal = missingDataMsg
+        issuingUserSession.sreplyln(missingDataMsg); 
+      }
+    }
+    
+    val reply = (CoreCmds.Broadcast.toString -> ("reply" -> retVal))
+    Some ( reply )  
+  }
+}
+
+/******************************************************************************
+  * class TellCommand
+  *****************************************************************************
+  * 
+  * this command passes the included message to the specified user
+  * 
+  * Modification history:
+  *
+  */
+class TellCommand extends Command(CoreCmds.Tell.toString,1) with LogUtil {
+  override def exec(issuingUserSession : UserSessionActor, req : Request) : Option[String] = {
+    req.modifiers match {
+      case Some(modlist : List[String]) => {
+        val toUname = modlist(0)
+        TellCommand.tell(issuingUserSession,toUname,req.data)
+      }
+      case None => { 
+        issuingUserSession.sreplyln("Er, tell who, exactly?")
+        None
+      }
+    }
+  }
+}
+
+object TellCommand {
+    def missingDataMsg = { "...mysterious silence" }
+  
+    def tell(fromUserSession : UserSessionActor, 
+           toUser          : String, 
+           msg             : Option[String]) : Option[String] = {
+    
+     // Should probably flip this around to check for
+     // a usergroup first, just in case there is a user tries to 
+     // hijack a topic by logging in with the same name as a topic
+     //
+     // Eventually, I'll have to implement logic to be sure that 
+     // topics names / aliases don't conflict with usernames
+     // (i.e. don't allow creation of a topic that has the same
+     //  name as a username / and don't allow a user to be registered
+     // with an active and/or common topic name)
+     //
+     AllUserSessions.getUserSession(toUser) match {
+        case Some(toUserSession) => {
+          tell(fromUserSession,toUserSession,msg)
+        }
+        case None => {
+          AllUserGroups.getUserGroup(toUser) match {
+            case Some(toUserGroup) => {
+              tell(fromUserSession,toUserGroup,msg)
+            }
+            case None => {
+              fromUserSession.sreplyln(toUser + " is not available.")
+            }
+          }
+          None
+        }
+     }
+  }
+  
+  def tell(fromUserSession : UserSessionActor, 
+           toUserSession   : UserSessionActor, 
+           msg             : Option[String]) : Option[String] = {
+	  msg match {
+	    case Some(s) => {
+		  toUserSession.sreplyln(fromUserSession.user.username + " tells you: " + s)
+		  fromUserSession.sreplyln("You tell " + toUserSession.user.username + ": " + s)
+	    }
+	    case None => { 
+		  fromUserSession.sreplyln(missingDataMsg) 
+	    }
+	  }
+	  None
+  }
+  
+  def tell(fromUserSession : UserSessionActor, 
+           toUserGroup     : UserGroup, 
+           msg             : Option[String]) : Option[String] = {
+	  msg match {
+	    case Some(s) => {
+	      toUserGroup.getUserSession(fromUserSession.user.username) match {
+	        case Some(fromUs) => {
+              toUserGroup.userMap filter { us => 
+	            us._2.user.username != null && 
+	            us._2.user.username != fromUserSession.user.username
+	          } foreach { us =>
+	            us._2.sreplyln(fromUserSession.user.username + " tells " + 
+	                           toUserGroup.groupName + ": " + s)
+	          }
+		      fromUserSession.sreplyln("You tell " + toUserGroup.groupName + ": " + s)
+	        }
+	        case None => {
+	          fromUserSession.sreplyln("Use |jointopic| to connect to this topic before sending messages.") 
+	        }
+	      }
+	    }
+	    case None => { 
+		  fromUserSession.sreplyln(missingDataMsg) 
+	    }
+	  }
+	  None
+  }
+  
+}
+
+

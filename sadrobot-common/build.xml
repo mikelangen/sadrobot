@@ -1,0 +1,66 @@
+
+<project name="sadrobot-common" default="create-jar" basedir=".">
+		
+	<!-- 
+	  ==
+	  == Moved extraction of scala and mina libs to common.  If you're going to 
+	  == use the objects in the common libraries, you're going to need the scala
+	  == and mina libraries too.  See note in sadrobot-server for additional 
+	  == comments.
+	  ==
+	  == Mike Langen 11/09/2011
+	  ==
+	  == Ok, I should have probably known better.  Putting the scala and mina libraries in here
+	  == in expanded form and sharing them everywhere is probably bad form.
+	  == So if you want to use this library you'll just have to include its 
+	  == dependecies too. Such is life.
+	  ==
+	  == For what it's worth, expanding out the scala libaries here did the trick of
+	  == making sure that sadrobot-server.jar was able to run with java -jar.  But _all_
+	  == my projects are written in scala, and eclipse doesn't like it when I remove
+	  == the system scala libraries from it's project, even though it's getting them
+	  == from the common lib jar instead.
+	  ==
+	  == But more importantly, there is approximately a 99.999% chance that extention / 
+	  == plugin writers will want to use a different (newer) version of scala than the
+	  == one that I've used for this lib.  I don't want to shove this one down their
+	  == throats.
+	  ==
+	  == Mike Langen 11/10/2011
+	  -->
+
+	
+	<!-- setup any global properties here -->
+	<property name="bin" value="./bin" />
+	<property name="build" value="./build" />
+	<property name="src" value="./src" />
+	<property name="dist" value="./dist" />
+	<property name="lib" value="./lib" />
+	<property name="jarfile.name" value="sadrobot-common.jar" />
+	<property name="mina" value="apache-mina-2.0.4" />
+	<!--
+	<property name="scala.lib" value="/home/admingeek/eclipse/configuration/org.eclipse.osgi/bundles/208/1/.cp/lib" />
+	  == see if I can't pull this out of the environment somehow, or at least put this into build.properties
+	-->
+	<property name="scala.lib" value="C:\eclipse_scala\configuration\org.eclipse.osgi\bundles\361\1\.cp\lib" />
+
+	<!-- clean out the dist directory -->
+	<target name="clean-pre-jar" description="Deletes and recreates build and dist dir.">
+		<echo message="Cleaning up the build and dist directory. "/>
+		<delete dir="${build}"/>
+		<mkdir  dir="${build}"/>
+		<delete dir="${dist}"/>
+		<mkdir  dir="${dist}"/>
+	</target>
+
+	<!-- create the jar file -->
+	<target name="create-jar" depends="clean-pre-jar" description="creates a an executable jar">
+		<echo message="Creating JAR file"/>
+		<copy todir="${build}">
+			<fileset dir="${bin}"/>
+		</copy>
+		<jar basedir="${build}" destfile="${dist}/${jarfile.name}"/>
+	</target>
+
+</project>
+

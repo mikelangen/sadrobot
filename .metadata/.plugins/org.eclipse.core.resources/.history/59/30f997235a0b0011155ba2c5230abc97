@@ -1,0 +1,47 @@
+
+<project name="sadrobot-core-commands" default="create-jar" basedir=".">
+	
+	<!-- setup any global properties here -->
+	<property name="bin" value="./bin" />
+	<property name="src" value="./src" />
+	<property name="dist" value="./dist" />
+	<property name="build" value="./build" />
+	<property name="lib" value="./lib" />
+	<property name="common.dist" value="../sadrobot-common/dist" />
+	<property name="config" value="./config" />
+	<property name="jarfile.name" value="sadrobot-server.jar" />
+	<property name="main" value="org.sadrobot.server.SadRobotServer" />
+	<property name="mina" value="apache-mina-2.0.4" />
+	<!--
+	<property name="scala.lib" value="C:\eclipse_scala\configuration\org.eclipse.osgi\bundles\361\1\.cp\lib" />
+	-->
+	<!--
+	<property file="build.properties" />	
+	-->
+
+	<!-- clean out the dist directory -->
+	<target name="clean-pre-jar" description="Deletes and recreates dist and build dir.">
+		<echo message="Cleaning up the dist and build directory. "/>
+		<delete dir="${dist}"/>
+		<mkdir dir="${dist}"/>
+		<delete dir="${build}/org/sadrobot"/>
+		<delete dir="${build}/test/sadrobot"/>
+		<mkdir dir="${build}"/>
+	</target>
+
+	<!-- create the jar file -->
+	<target name="create-jar" depends="clean-pre-jar" description="creates a an executable jar">
+		<echo message="Creating JAR file"/>
+		
+		<!--
+		<copy todir="${build}">
+			<fileset dir="${bin}"/>
+		</copy>
+		-->
+		
+		<jar basedir="${bin}" destfile="${dist}/${jarfile.name}"/>
+
+	</target>
+
+</project>
+

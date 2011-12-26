@@ -1,0 +1,6 @@
+-- TOPICCREATE --
+
+topiccreate <topic>
+
+This creates a new topic for discussion, and connects you to 
+that topic.

@@ -1,0 +1,241 @@
+
+<project name="sadrobot-server" default="create-jar" basedir=".">
+
+	<!-- Notes.  Pay attention, kiddos, to my little story.  It could save you
+	  == some heartache.
+	  ==
+	  == So my lofty goal is to create a jar of my little program that can be 
+	  == run simply with java -jar SadRobotServer.jar
+	  ==
+	  == Given that scalac compiles to Java class files, I don't want any clients
+	  == to even have to know that this most joyous piece of software is written
+	  == in scala.  If they have a recent java installed (1.6 or later), I would
+	  == like to just give them a jar and go.  I don't want them to have to worry
+	  == about having the right version of scala installed on their machine, etc.
+	  ==
+	  == So, the idea is to just put everything that I need in a jar, right?  seems
+	  == like the responsible thing to do.
+	  ==
+	  == The first thing to mention is a few comments about the MANIFEST.MF that 
+	  == will be in that jar.  Personally, I am a little rusty on the details of 
+	  == that most wonderful file, so let me share with you what I've learned.
+	  == 
+	  == #1> You can either create it directly on the file system, or via the <manifest>
+	  == child tag for the <jar> tag.  It's safer to let your system generate it, because
+	  == #2> lines are limited to 72 characters / it doesn't like blank lines at the end of
+	  == the file and line "wrapping" an manifest entry (i.e. Class-Path: ) is still rather 
+	  == mysterious.  (It looks like chopping words up, and continuing them on the next 
+	  == line prefixed by a space is thier idea of "line wrapping"...  I hope I'm mistaken)
+	  ==
+	  == It looks like jars need to be specified individually in the Manifest classpath.  
+	  == Although I would like to find a way to say "just include all the jars in this dir" 
+	  == in the path, it doesn't look like that's how it works.
+	  ==
+	  == THIS IS THE IMPORTANT PART:
+	  ==
+	  == So, I've had to do a few "hacks" to get this to work.  First!  You evidently can't
+	  == just include scala-library.jar in your classpath.  Well, you can, but it won't work.
+	  == 
+	  == Still not sure why.  If you get:
+	  ==
+	  == NoClassDefFoundError: scala/ScalaObject
+	  ==
+	  == That's what's going on.  In order to fix it, I had to unzip
+	  == the scala-libraries and include them just like my own classes.
+	  ==
+	  == Also, I was hoping that when I composed my jar, I could just point it to the different
+	  == directories / files that I wanted to include.  I hope I'm missing something and that 
+	  == theres a nicer way to do this.  Instead, I just copy everything that I'm going to need
+	  == in the jar into a "build" directory, build a jar from everything in the build dir
+	  == and put it into the dist directory.  
+	  ==
+	  == Mike Langen 11/08/2011
+	  ==
+	  == Ok, update to this.  So, I have to expand out everything.  Isn't that just nifty.
+	  ==
+	  == Also, don't forget any properties files (i.e. log4j.properties), need to be stuck in
+	  == the same directory as your jar.  Luckily, I'm not really using all the much, so 
+	  == a lot of the libraries are commented out.  If you start getting  NoClassDefFoundError
+	  == errors, you probably need to expand out another library.  I'd rather add them as
+	  == I need them than have some ridiculous bloaty .jar
+	  ==
+	  == Turns out that I didn't need to worry about that MANIFEST classpath at all, since
+	  == I have to expand it all out anyway.
+	  ==
+	  == Mike Langen 11/08/2001
+	  ==
+	  == Ok, moved all these expansions into scala-common.jar, and I'm just expanding 
+	  == that instead.
+	  ==
+	  == Mike Langen 11/09/2011
+	  ==
+	  == Ok, moving these expansions back.  See comment in common build.xml for more details :)
+	  ==
+	  == Mike Langen 11/10/2011
+	  ==
+	  -->
+	
+	<!-- setup any global properties here -->
+	<property name="bin"           value="./bin" />
+	<property name="src"           value="./src" />
+	<property name="dist"          value="./dist" />
+	<property name="build"         value="./build" />
+	<property name="lib"           value="./lib" />
+	<property name="ext"           value="./ext" />
+	<property name="common"        value="../sadrobot-common" />
+	<property name="config"        value="./config" />
+	<property name="jarfile.name"  value="sadrobot-server.jar" />
+	<property name="main"          value="org.sadrobot.server.SadRobotServer" />
+	<property name="mina"          value="apache-mina-2.0.4" />
+	<property name="lift"          value="lift-lift_24_sbt-2856856/scala_29/lift_basic/lib_managed/scala_2.9.0-1/compile" />
+	<property name="core.commands" value="../sadrobot-core-commands" />
+	<property name="sadrobot.home" value="D:\scala_sandbox\sadrobot-server" />
+	
+	<!--
+	  == Don't try to use the lift_28 libs.  Everything compiled fine, but I 
+	  == got the following runtime error when trying to call 
+	  == import net.liftweb.json.Printer.render
+	  ==
+	  == java.lang.NoSuchMethodError:
+	  == scala.runtime.RichInt.until(I)Lscala/collection/immutable/Range$ByOne;
+	  ==
+	  == Use the 2.9 libs and render works fine.
+	  ==
+	  -->
+
+	<property name="scala.lib" value="/home/admingeek/eclipse/configuration/org.eclipse.osgi/bundles/208/1/.cp/lib" />
+	<!--
+	  == see if I can't pull this out of the environment somehow, or at least put this into build.properties
+	<property name="scala.lib" value="C:\eclipse_scala\configuration\org.eclipse.osgi\bundles\361\1\.cp\lib" />
+	-->
+	<!--
+	<property file="build.properties" />	
+	-->
+	
+	<!--
+	<path id="cp.ref">
+		<pathelement location = "${dist}/${jarfile.name}"/>
+		<fileset dir = "${ext}">
+			<include name = "*.jar"/>
+		</fileset>
+	</path>
+	-->
+
+	<!-- clean out the dist directory -->
+	<target name="clean-pre-jar" description="Deletes and recreates dist and build dir.">
+		<echo message="Cleaning up the dist and build directory. "/>
+		<delete dir="${dist}"/>
+		<mkdir  dir="${dist}"/>
+		<delete dir="${ext}"/>
+		<mkdir  dir="${ext}"/>
+		<delete dir="${build}/org/sadrobot"/>
+		<delete dir="${build}/test/sadrobot"/>
+		<mkdir  dir="${build}"/>
+	</target>
+
+	<!-- create the jar file -->
+	<target name="create-jar" depends="clean-pre-jar" description="creates a an executable jar">
+		<echo message="Creating JAR file"/>
+		
+		<copy todir="${build}">
+			<fileset dir="${bin}"/>
+			<zipfileset src="${common}/dist/sadrobot-common.jar" />
+			<zipfileset src="${scala.lib}/scala-library.jar" />
+			<!--
+			<zipfileset dir="${scala.lib}/scala-dbc.jar" />
+		    <zipfileset dir="${scala.lib}scala-swing.jar" />
+		    -->
+			<zipfileset src="${common}/${mina}/dist/mina-core-2.0.4.jar" />
+			<zipfileset src="${common}/${lift}/lift-json_2.9.0-1-2.4-M5.jar" />
+			<!--
+			<zipfileset src="${mina}/dist/mina-example-2.0.4.jar" />
+			<zipfileset src="${mina}/dist/mina-filter-compression-2.0.4.jar" />
+			<zipfileset src="${mina}/dist/mina-integration-beans-2.0.4.jar" />
+			<zipfileset src="${mina}/dist/mina-integration-jmx-2.0.4.jar" />
+			<zipfileset src="${mina}/dist/mina-integration-ognl-2.0.4.jar" />
+			<zipfileset src="${mina}/dist/mina-integration-xbean-2.0.4.jar" />
+			<zipfileset src="${mina}/dist/mina-statemachine-2.0.4.jar" />     
+			<zipfileset src="${mina}/dist/mina-transport-apr-2.0.4.jar" />
+			<zipfileset src="${mina}/lib/commons-lang-2.6.jar" />
+			<zipfileset src="${mina}/lib/commons-logging-1.0.3.jar" />
+			<zipfileset src="${mina}/lib/javassist-3.11.0.GA.jar" />
+			<zipfileset src="${mina}/lib/javassist-3.7.ga.jar" />
+			<zipfileset src="${mina}/lib/jcl-over-slf4j-1.6.1.jar" />
+			<zipfileset src="${mina}/lib/jzlib-1.0.7.jar" />
+			<zipfileset src="${mina}/lib/ognl-3.0.1.jar" />
+			-->
+			<zipfileset src="${common}/${mina}/lib/slf4j-api-1.6.1.jar" />
+			<!--
+			<zipfileset src="${mina}/lib/spring-2.5.6.jar" />
+			<zipfileset src="${mina}/lib/tomcat-apr-5.5.23.jar" />
+			<zipfileset src="${mina}/lib/xbean-spring-3.7.jar" />
+			-->
+			<zipfileset src="${common}/lib/log4j-1.2.16.jar" />
+
+		</copy>
+
+		<copy todir="${ext}">
+			<fileset dir="${core.commands}/dist"/>
+		</copy>
+		
+		<jar basedir="${build}" destfile="${dist}/${jarfile.name}">
+			<manifest>
+			    <attribute name="Main-Class" value="${main}"/>
+			</manifest>
+		</jar>
+		<copy todir="${dist}">
+			<fileset file="log4j.properties" />
+		</copy>
+	</target>
+	
+	   <!--
+	     == Trouble getting this to find my main class.  Not sure what's going on, it runs fine 
+	     == from the command line, with either the -jar method or the -cp <classpath> <mainobject>
+	     == methond
+	     == 
+	     == D:\scala_sandbox\sadrobot-server\dist>java -cp sadrobot-server.jar org.sadrobot.server.SadRobotServer
+	     ==
+	     == works
+	     ==
+	     == I'm getting fed up with it so I'm punting on this for now
+	     ==
+	     == Wrote a batch file to start this manually, and put it in the start folder
+	     ==
+	     == 11/11/2011 Mike Langen
+	     -->
+	<!--
+	<target name="start-server" depends="create-jar" description="starts the server process">
+		<echo message="classpath is: ${sadrobot.home}/dist/${jarfile.name} ${sadrobot.home}/ext/sadrobot-core-commands.jar"/>
+		<java 
+			  classpath="${sadrobot.home}/dist/${jarfile.name} ${sadrobot_home}/ext/sadrobot-core-commands.jar"
+		      classname="${main}"
+		      fork="true"/>
+    -->
+           <!--
+             == If classpath grows, use the classpathref attribute instead, and point it to
+             == a <path> tag. i.e. classpathref="cp.ref" and
+             ==
+             == 	<path id="cp.ref">
+             ==       <pathelement location = "${dist}/${jarfile.name}.jar"/>
+			 ==		  <fileset dir = "${ext}">
+			 ==			  <include name = "*.jar"/>
+			 ==		  </fileset>
+	         ==     </path>
+	         ==
+             -->
+	
+			<!--
+			  ==
+			  == eventually will need to pass in jvm parameters / properties
+			  ==
+			  -->
+	        <!--
+		    <jvmarg value="-Xmx256M"/>
+	        <sysproperty key="log4j.properties" value="${sadrobot.home}\dist\log4.properties" />
+	        -->
+	<!--
+	</target>
+	-->
+
+</project>
+
